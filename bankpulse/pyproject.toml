@@ -1,0 +1,23 @@
+[project]
+name = "bankpulse"
+version = "0.1.0"
+description = "Interactive Credit Conditions Explorer for U.S. Commercial Banking Activity"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pandas>=2.2.0",
+    "numpy>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "requests>=2.32.0",
+    "boto3>=1.35.0",
+    "scikit-learn>=1.5.0",
+    "plotly>=5.24.0",
+    "python-multipart>=0.0.12",
+    "python-dotenv>=1.0.0",
+    "lxml>=5.0.0",
+]
+
+[project.scripts]
+bankpulse = "bankpulse.main:main"

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BankPulse - Credit Conditions Explorer</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .stat {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #764ba2;
+            margin: 10px 0;
+        }
+        
+        .label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 5px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        #chart {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-height: 400px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            color: #ef4444;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .ai-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 30px;
+        }
+        
+        .ai-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        #aiQuestion {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        
+        #aiResponse {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+        
+        .flli-score {
+            font-size: 3em;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .flli-positive {
+            color: #10b981;
+        }
+        
+        .flli-negative {
+            color: #ef4444;
+        }
+        
+        .flli-neutral {
+            color: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏦 BankPulse</h1>
+            <p class="subtitle">Interactive Credit Conditions Explorer for U.S. Commercial Banking</p>
+        </header>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h2>Database Status</h2>
+                <div class="stat" id="recordCount">-</div>
+                <div class="label">Total Records</div>
+                <div class="label" id="dateRange">-</div>
+            </div>
+            
+            <div class="card">
+                <h2>FLLI Score</h2>
+                <div class="flli-score" id="flliScore">-</div>
+                <div class="label">Forward-Looking Lending Index</div>
+                <div class="label" style="margin-top: 10px; font-size: 0.85em; line-height: 1.4;">
+                    Combines loan growth momentum, deposit volatility, and reserve trends to measure credit conditions
+                </div>
+                <div class="label" style="margin-top: 8px; font-size: 0.8em; color: #888;" id="flliDateRange">
+                    Calculated for selected date range
+                </div>
+                <div class="label" style="margin-top: 8px;">
+                    <span style="color: #10b981;">+100 = Expansion</span> | 
+                    <span style="color: #ef4444;">-100 = Tightening</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <button onclick="downloadData()" id="downloadBtn">📥 Download H8 Data</button>
+                <button onclick="loadSummary()">🔄 Refresh Status</button>
+                <button onclick="calculateFLLI()">📊 Calculate FLLI</button>
+            </div>
+        </div>
+        
+        <div class="card controls">
+            <h2>Data Visualization</h2>
+            <div style="margin-bottom: 15px;">
+                <label class="label">Date Range:</label>
+                <input type="date" id="startDate" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 5px;">
+                <span style="margin: 0 5px;">to</span>
+                <input type="date" id="endDate" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 5px;">
+                <button onclick="setLast5Years()" style="padding: 8px 15px; font-size: 0.9em;">Last 5 Years</button>
+                <button onclick="setLast1Year()" style="padding: 8px 15px; font-size: 0.9em;">Last Year</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label class="label">Asset Class:</label>
+                <select id="assetClass" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 5px;">
+                    <option value="commercial_industrial">Commercial & Industrial</option>
+                    <option value="real_estate">Real Estate</option>
+                    <option value="consumer">Consumer</option>
+                    <option value="deposits">Deposits</option>
+                    <option value="loans">Loans</option>
+                    <option value="reserves">Reserves</option>
+                </select>
+            </div>
+            <button onclick="loadGrowthRates()">📈 Growth Rates</button>
+            <button onclick="loadAnomalies()">⚠️ Detect Anomalies</button>
+            <button onclick="loadClusters()">🎯 Bank Clusters</button>
+        </div>
+        
+        <div id="chart"></div>
+        
+        <div class="ai-section">
+            <h2>🤖 AI Assistant</h2>
+            <p class="label">Ask questions about the H8 banking data:</p>
+            <input type="text" id="aiQuestion" placeholder="e.g., How have small bank deposits changed since March 2023?" />
+            <button onclick="askAI()">Ask AI</button>
+            <div id="aiResponse"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        // Initialize date range to last 5 years
+        function initializeDateRange() {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setFullYear(endDate.getFullYear() - 5);
+            
+            document.getElementById('endDate').valueAsDate = endDate;
+            document.getElementById('startDate').valueAsDate = startDate;
+        }
+        
+        function setLast5Years() {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setFullYear(endDate.getFullYear() - 5);
+            
+            document.getElementById('endDate').valueAsDate = endDate;
+            document.getElementById('startDate').valueAsDate = startDate;
+        }
+        
+        function setLast1Year() {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setFullYear(endDate.getFullYear() - 1);
+            
+            document.getElementById('endDate').valueAsDate = endDate;
+            document.getElementById('startDate').valueAsDate = startDate;
+        }
+        
+        function getDateRange() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            return { startDate, endDate };
+        }
+        
+        async function loadSummary() {
+            try {
+                const response = await fetch(`${API_BASE}/data/summary`);
+                const data = await response.json();
+                
+                if (data.status === 'no_data') {
+                    document.getElementById('recordCount').textContent = '0';
+                    document.getElementById('dateRange').textContent = 'No data available';
+                } else {
+                    document.getElementById('recordCount').textContent = data.total_records.toLocaleString();
+                    document.getElementById('dateRange').textContent = 
+                        `${data.date_range.min} to ${data.date_range.max}`;
+                }
+            } catch (error) {
+                console.error('Error loading summary:', error);
+                alert('Error loading summary. Make sure the API server is running.');
+            }
+        }
+        
+        async function downloadData() {
+            const btn = document.getElementById('downloadBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Downloading...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/data/download`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                alert(`${result.message}\nRecords added: ${result.records_added}`);
+                loadSummary();
+            } catch (error) {
+                console.error('Error downloading data:', error);
+                alert('Error downloading data: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📥 Download H8 Data';
+            }
+        }
+        
+        async function calculateFLLI() {
+            try {
+                const { startDate, endDate } = getDateRange();
+                const response = await fetch(`${API_BASE}/analytics/flli?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                
+                if (data.status === 'calculated') {
+                    const score = data.flli_score;
+                    const scoreEl = document.getElementById('flliScore');
+                    scoreEl.textContent = score.toFixed(1);
+                    
+                    // Update date range indicator
+                    const dateRangeEl = document.getElementById('flliDateRange');
+                    if (startDate && endDate) {
+                        dateRangeEl.textContent = `Based on: ${startDate} to ${endDate}`;
+                    } else {
+                        dateRangeEl.textContent = 'Based on selected date range';
+                    }
+                    
+                    if (score > 20) {
+                        scoreEl.className = 'flli-score flli-positive';
+                    } else if (score < -20) {
+                        scoreEl.className = 'flli-score flli-negative';
+                    } else {
+                        scoreEl.className = 'flli-score flli-neutral';
+                    }
+                } else {
+                    document.getElementById('flliScore').textContent = 'N/A';
+                    document.getElementById('flliDateRange').textContent = 'No data available';
+                }
+            } catch (error) {
+                console.error('Error calculating FLLI:', error);
+            }
+        }
+        
+        async function loadGrowthRates() {
+            document.getElementById('chart').innerHTML = '<div class="loading"><div class="spinner"></div>Loading growth rates...<br><small>Analyzing top 3 series</small></div>';
+            
+            try {
+                const { startDate, endDate } = getDateRange();
+                const assetClass = document.getElementById('assetClass').value;
+                const response = await fetch(`${API_BASE}/analytics/growth-rates?start_date=${startDate}&end_date=${endDate}&asset_class=${assetClass}&max_series=3`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.data.length === 0) {
+                    document.getElementById('chart').innerHTML = '<div class="loading">No data available for selected filters</div>';
+                    return;
+                }
+                
+                // Group by series and plot
+                const series = {};
+                result.data.forEach(row => {
+                    if (!series[row.series_name]) {
+                        series[row.series_name] = { dates: [], yoy: [] };
+                    }
+                    if (row.yoy_change !== null && row.yoy_change !== undefined && isFinite(row.yoy_change)) {
+                        series[row.series_name].dates.push(row.date);
+                        series[row.series_name].yoy.push(row.yoy_change);
+                    }
+                });
+                
+                const traces = Object.entries(series).map(([name, data]) => ({
+                    x: data.dates,
+                    y: data.yoy,
+                    name: name.substring(0, 60),
+                    type: 'scatter',
+                    mode: 'lines'
+                }));
+                
+                const assetClassNames = {
+                    'commercial_industrial': 'Commercial & Industrial',
+                    'real_estate': 'Real Estate',
+                    'consumer': 'Consumer',
+                    'deposits': 'Deposits',
+                    'loans': 'Loans',
+                    'reserves': 'Reserves'
+                };
+                
+                const layout = {
+                    title: `Year-over-Year Growth Rates - ${assetClassNames[assetClass] || assetClass}`,
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'YoY Change (%)' },
+                    showlegend: true
+                };
+                
+                // Clear the div first
+                document.getElementById('chart').innerHTML = '';
+                Plotly.newPlot('chart', traces, layout);
+            } catch (error) {
+                console.error('Error loading growth rates:', error);
+                document.getElementById('chart').innerHTML = `<div class="error-message">Error loading data: ${error.message}<br><small>Try a different asset class or date range</small></div>`;
+            }
+        }
+        
+        async function loadAnomalies() {
+            document.getElementById('chart').innerHTML = '<div class="loading"><div class="spinner"></div>Detecting anomalies...</div>';
+            
+            try {
+                const { startDate, endDate } = getDateRange();
+                const response = await fetch(`${API_BASE}/analytics/anomalies?start_date=${startDate}&end_date=${endDate}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.anomalies.length === 0) {
+                    document.getElementById('chart').innerHTML = '<div class="loading">No anomalies detected in selected date range</div>';
+                    return;
+                }
+                
+                const trace = {
+                    x: result.anomalies.map(a => a.date),
+                    y: result.anomalies.map(a => a.value),
+                    text: result.anomalies.map(a => a.series_name),
+                    mode: 'markers',
+                    type: 'scatter',
+                    marker: { size: 10, color: '#ef4444' }
+                };
+                
+                const layout = {
+                    title: `Anomalies Detected (${result.count} total)`,
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Value' }
+                };
+                
+                // Clear the div first
+                document.getElementById('chart').innerHTML = '';
+                Plotly.newPlot('chart', [trace], layout);
+            } catch (error) {
+                console.error('Error loading anomalies:', error);
+                document.getElementById('chart').innerHTML = `<div class="error-message">Error loading data: ${error.message}</div>`;
+            }
+        }
+        
+        async function loadClusters() {
+            document.getElementById('chart').innerHTML = '<div class="loading"><div class="spinner"></div>Clustering banks...<br><small>Analyzing lending patterns</small></div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/analytics/clusters?n_clusters=3`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.status !== 'success') {
+                    document.getElementById('chart').innerHTML = `<div class="loading">${result.status}</div>`;
+                    return;
+                }
+                
+                let html = '<div style="padding: 20px;"><h3>Bank Clustering Results</h3>';
+                result.clusters.forEach(cluster => {
+                    html += `<div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px;">`;
+                    html += `<h4>Cluster ${cluster.cluster_id + 1} (${cluster.series_count} series)</h4>`;
+                    html += `<ul>`;
+                    cluster.series_names.forEach(name => {
+                        html += `<li>${name}</li>`;
+                    });
+                    html += `</ul></div>`;
+                });
+                html += '</div>';
+                
+                document.getElementById('chart').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading clusters:', error);
+                document.getElementById('chart').innerHTML = `<div class="error-message">Error loading data: ${error.message}</div>`;
+            }
+        }
+        
+        async function askAI() {
+            const question = document.getElementById('aiQuestion').value;
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            document.getElementById('aiResponse').textContent = 'Thinking...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/ai/query?question=${encodeURIComponent(question)}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    document.getElementById('aiResponse').textContent = result.answer;
+                } else {
+                    document.getElementById('aiResponse').textContent = `Error: ${result.error}`;
+                }
+            } catch (error) {
+                console.error('Error asking AI:', error);
+                document.getElementById('aiResponse').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        // Load initial data
+        initializeDateRange();
+        loadSummary();
+        calculateFLLI();
+    </script>
+</body>
+</html>
